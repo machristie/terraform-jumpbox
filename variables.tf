@@ -28,3 +28,6 @@ variable "vm_public_ip_name" {
 variable "username" {
   default = "rocky"
 }
+variable "jumpbox_username" {
+  default = "ubuntu"
+}

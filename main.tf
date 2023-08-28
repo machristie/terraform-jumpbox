@@ -48,6 +48,35 @@ resource "azurerm_public_ip" "vm_public_ip" {
   allocation_method   = "Dynamic"
 }
 
+# jumpbox's public ip
+resource "azurerm_public_ip" "jumpbox_public_ip" {
+  name                = "jumpbox-public-ip"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  allocation_method   = "Dynamic"
+}
+
+# jumpbox's nic to jumpbox-subnet
+resource "azurerm_network_interface" "jumpbox_nic" {
+  name                = "jumpbox_nic"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  ip_configuration {
+    name                          = "jumpbox_nic_configuration"
+    subnet_id                     = azurerm_subnet.jumpbox_subnet.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.jumpbox_public_ip.id
+  }
+}
+
+
+# allow SSH on jumpbox's nic
+resource "azurerm_network_interface_security_group_association" "jumpbox_nic_nsg" {
+  network_interface_id      = azurerm_network_interface.jumpbox_nic.id
+  network_security_group_id = azurerm_network_security_group.allow_ssh_nsg.id
+}
+
 # VM's nic to vm_subnet
 resource "azurerm_network_interface" "vm_nic" {
   name                = "vm_nic"
@@ -63,8 +92,8 @@ resource "azurerm_network_interface" "vm_nic" {
 }
 
 # azurerm_network_security_group to allow SSH (port 22)
-resource "azurerm_network_security_group" "vm_nsg" {
-  name                = "vm_nsg"
+resource "azurerm_network_security_group" "allow_ssh_nsg" {
+  name                = "allow_ssh_nsg"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
@@ -84,7 +113,7 @@ resource "azurerm_network_security_group" "vm_nsg" {
 # azurerm_network_interface_security_group_association associate "allow SSH" with nic
 resource "azurerm_network_interface_security_group_association" "vm_nic_nsg" {
   network_interface_id      = azurerm_network_interface.vm_nic.id
-  network_security_group_id = azurerm_network_security_group.vm_nsg.id
+  network_security_group_id = azurerm_network_security_group.allow_ssh_nsg.id
 }
 
 # azurerm_linux_virtual_machine, create the application VM
@@ -119,6 +148,34 @@ resource "azurerm_linux_virtual_machine" "vm" {
 
   admin_ssh_key {
     username   = var.username
+    public_key = file("~/.ssh/gt.pub")
+  }
+}
+
+# jumpbox VM, a minimal Ubuntu LTS VM
+resource "azurerm_linux_virtual_machine" "jumpbox" {
+  name                  = "jumpbox-vm"
+  location              = azurerm_resource_group.rg.location
+  resource_group_name   = azurerm_resource_group.rg.name
+  network_interface_ids = [azurerm_network_interface.jumpbox_nic.id]
+  size                  = "Standard_B1ls"
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
+
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-minimal-jammy"
+    sku       = "minimal-22_04-lts"
+    version   = "latest"
+  }
+
+  admin_username = var.jumpbox_username
+
+  admin_ssh_key {
+    username   = var.jumpbox_username
     public_key = file("~/.ssh/gt.pub")
   }
 }
