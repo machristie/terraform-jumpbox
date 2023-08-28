@@ -22,3 +22,9 @@ variable "vm_subnet_name" {
 variable "vm_subnet_address_prefixes" {
   default = ["10.0.0.0/24"]
 }
+variable "vm_public_ip_name" {
+  default = "vm-public-ip"
+}
+variable "username" {
+  default = "rocky"
+}
