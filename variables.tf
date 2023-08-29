@@ -16,6 +16,12 @@ variable "jumpbox_subnet_name" {
 variable "jumpbox_subnet_address_prefixes" {
   default = ["10.0.1.0/24"]
 }
+variable "jumpbox_nsg_allow_ssh_address_prefixes" {
+  default = [
+    "143.215.0.0/16", # GT network subnet
+    "216.249.91.203"  # Marcus home IP address
+  ]
+}
 variable "vm_subnet_name" {
   default = "vm-subnet"
 }
