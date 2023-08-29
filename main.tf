@@ -64,9 +64,9 @@ resource "azurerm_network_interface" "jumpbox_nic" {
 
 
 # allow SSH on jumpbox's nic
-resource "azurerm_network_interface_security_group_association" "jumpbox_nic_nsg" {
+resource "azurerm_network_interface_security_group_association" "jumpbox_nic_nsg_association" {
   network_interface_id      = azurerm_network_interface.jumpbox_nic.id
-  network_security_group_id = azurerm_network_security_group.allow_ssh_nsg.id
+  network_security_group_id = azurerm_network_security_group.jumpbox_nic_nsg.id
 }
 
 # VM's nic to vm_subnet
@@ -83,28 +83,65 @@ resource "azurerm_network_interface" "vm_nic" {
 }
 
 # azurerm_network_security_group to allow SSH (port 22)
-resource "azurerm_network_security_group" "allow_ssh_nsg" {
-  name                = "allow_ssh_nsg"
+resource "azurerm_network_security_group" "jumpbox_nic_nsg" {
+  name                = "jumpbox_nic_nsg"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-
-  security_rule {
-    name                       = "SSH"
-    priority                   = 1001
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
 }
 
-# azurerm_network_interface_security_group_association associate "allow SSH" with nic
-resource "azurerm_network_interface_security_group_association" "vm_nic_nsg" {
-  network_interface_id      = azurerm_network_interface.vm_nic.id
-  network_security_group_id = azurerm_network_security_group.allow_ssh_nsg.id
+resource "azurerm_network_security_rule" "allow_ssh" {
+  network_security_group_name = azurerm_network_security_group.jumpbox_nic_nsg.name
+  resource_group_name         = azurerm_resource_group.rg.name
+  name                        = "SSH"
+  priority                    = 1001
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "22"
+  source_address_prefix       = "*"
+  destination_address_prefix  = "*"
+}
+
+resource "azurerm_network_security_group" "vm_subnet_nsg" {
+  name                = "nsg-vm-subnet"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+}
+
+resource "azurerm_network_security_rule" "from_jumpbox_allow_ssh" {
+  network_security_group_name = azurerm_network_security_group.vm_subnet_nsg.name
+  resource_group_name         = azurerm_resource_group.rg.name
+
+  name                       = "SSH"
+  priority                   = 500
+  direction                  = "Inbound"
+  access                     = "Allow"
+  protocol                   = "Tcp"
+  source_port_range          = "*"
+  destination_port_range     = "22"
+  source_address_prefix      = azurerm_subnet.jumpbox_subnet.address_prefixes[0]
+  destination_address_prefix = azurerm_subnet.vm_subnet.address_prefixes[0]
+}
+
+resource "azurerm_network_security_rule" "from_jumpbox_disallow_all" {
+  network_security_group_name = azurerm_network_security_group.vm_subnet_nsg.name
+  resource_group_name         = azurerm_resource_group.rg.name
+
+  name                       = "Inbound_Deny_from_jumpbox"
+  priority                   = 1000
+  direction                  = "Inbound"
+  access                     = "Deny"
+  protocol                   = "Tcp"
+  source_port_range          = "*"
+  destination_port_range     = "*"
+  source_address_prefix      = azurerm_subnet.jumpbox_subnet.address_prefixes[0]
+  destination_address_prefix = azurerm_subnet.vm_subnet.address_prefixes[0]
+}
+
+resource "azurerm_subnet_network_security_group_association" "nsg_vm_subnet_association" {
+  network_security_group_id = azurerm_network_security_group.vm_subnet_nsg.id
+  subnet_id                 = azurerm_subnet.vm_subnet.id
 }
 
 # azurerm_linux_virtual_machine, create the application VM
