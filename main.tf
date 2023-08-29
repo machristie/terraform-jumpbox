@@ -40,14 +40,6 @@ resource "azurerm_subnet" "vm_subnet" {
   address_prefixes     = var.vm_subnet_address_prefixes
 }
 
-# VM's public ip (temporary, just for testing)
-resource "azurerm_public_ip" "vm_public_ip" {
-  name                = var.vm_public_ip_name
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  allocation_method   = "Dynamic"
-}
-
 # jumpbox's public ip
 resource "azurerm_public_ip" "jumpbox_public_ip" {
   name                = "jumpbox-public-ip"
@@ -87,7 +79,6 @@ resource "azurerm_network_interface" "vm_nic" {
     name                          = "vm_nic_configuration"
     subnet_id                     = azurerm_subnet.vm_subnet.id
     private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.vm_public_ip.id
   }
 }
 
