@@ -166,6 +166,8 @@ resource "azurerm_linux_virtual_machine" "vm" {
 
   # Got the plan information from output of running:
   #   az vm image show --location eastus --urn erockyenterprisesoftwarefoundationinc1653071250513:rockylinux:free:8.7.20230215
+  # Need to accept the terms of the rockylinux image
+  #   az vm image terms accept --offer=rockylinux --publisher=erockyenterprisesoftwarefoundationinc1653071250513 --plan=free
   plan {
     name      = "free"
     product   = "rockylinux"
